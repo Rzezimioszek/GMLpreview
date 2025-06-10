@@ -13,11 +13,11 @@
 
 
 ## Postawione cele do realizacji
-- [?] Wczytywanie jakotako danych EGiB
+- [x] Wczytywanie jakotako danych EGiB
 - [ ] Wczytywanie jakotako danych BDOT500
 - [ ] Wczytywanie jakotako danych GESUT
 - [ ] Pełna wizualizacja danych EGiB
-- [ ] Wczytywanie wsystkich tabel atrybutów (w tym tych bez geometrii)
+- [x] Wczytywanie wsystkich tabel atrybutów (w tym tych bez geometrii)
 - [ ] eksport tabel do csv, xlsx, json
 - [ ] eksport geometrii do shp, dxf
 - [ ] eksport danych z relacjami do xlsx (np. właściciel-działka)

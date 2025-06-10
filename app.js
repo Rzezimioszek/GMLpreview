@@ -3,8 +3,14 @@
     const baseLayers = {
         "OpenStreetMap": L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,
-          attribution: "© OpenStreetMap"
+          attribution: "© OpenStreetMap",
+          maxZoom:25
         }),
+        "Ciemny": L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+            attribution: "© CartoDB",
+            subdomains: "abcd",
+            maxZoom:25
+          }),
         "Ortofotomapa-Geoportal": L.tileLayer.wms("https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/StandardResolution", {
           layers: "Raster",
           format: "image/png",
@@ -21,15 +27,23 @@
             version: "1.3.0",
             maxZoom:25
           }),
+        "Brak": L.tileLayer("", {
+            attribution: "",
+            subdomains: "abcd",
+            maxZoom:25
+          })
+      };
+
+      const overlayers = {
         "KIEG": L.tileLayer.wms("https://integracja02.gugik.gov.pl/cgi-bin/KrajowaIntegracjaEwidencjiGruntow", {
-          layers: "dzialki,numery_dzialek,budynki",
-          format: "image/png",
-          transparent: true,
-          attribution: "© Geoportal",
-          version: "1.3.0",
-          maxZoom:25
-        }),
-        "KIUT": L.tileLayer.wms("https://integracja.gugik.gov.pl/cgi-bin/KrajowaIntegracjaUzbrojeniaTerenu", {
+            layers: "dzialki,numery_dzialek,budynki",
+            format: "image/png",
+            transparent: true,
+            attribution: "© Geoportal",
+            version: "1.3.0",
+            maxZoom:25
+          }),
+          "KIUT": L.tileLayer.wms("https://integracja.gugik.gov.pl/cgi-bin/KrajowaIntegracjaUzbrojeniaTerenu", {
             layers: "przewod_urzadzenia,przewod_niezidentyfikowany,przewod_specjalny,przewod_telekomunikacyjny,przewod_cieplowniczy,przewod_gazowy,przewod_elektroenergetyczny,przewod_kanalizacyjny,przewod_wodociagowy",
             format: 'image/png',
             transparent: true,
@@ -42,23 +56,14 @@
             transparent: true,
             attribution: "© Geoportal",
             maxZoom:25
-        }),
-        "Ciemny": L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-          attribution: "© CartoDB",
-          subdomains: "abcd",
-          maxZoom: 19
-        }),
-        "Brak": L.tileLayer("", {
-            attribution: "",
-            subdomains: "abcd",
-            maxZoom: 19
-          })
-      };
+        })
+      }
       
     const map = L.map('map').setView([52, 19], 7);
     const layerGroups = {};
     const innerLayers = {};
     const featuresByClass = {};
+
     const epsgDefs = {
       'EPSG:2176': '+proj=tmerc +lat_0=0 +lon_0=15 +k=0.999923 +x_0=5500000 +y_0=0 +ellps=GRS80 +units=m +no_defs',
       'EPSG:2177': '+proj=tmerc +lat_0=0 +lon_0=18 +k=0.999923 +x_0=6500000 +y_0=0 +ellps=GRS80 +units=m +no_defs',
@@ -68,7 +73,7 @@
 
     // Dodaj domyślny podkład do mapy
     baseLayers["OpenStreetMap"].addTo(map);
-    L.control.layers(baseLayers, null, { position: 'topright', collapsed: true }).addTo(map);
+    L.control.layers(baseLayers, overlayers, { position: 'topright', collapsed: true }).addTo(map);
 
     const defaultStyle = {
         color: "#3388ff",
@@ -77,7 +82,7 @@
         fillOpacity: 0.2
       };
       
-      const highlightStyle = {
+    const highlightStyle = {
         color: "#ffcc00",
         fillColor: "#ffcc00",
         weight: 4,
@@ -309,7 +314,7 @@
         }
       }
       
-      function getPolygonCentroid(coords) {
+    function getPolygonCentroid(coords) {
         let x = 0, y = 0, area = 0;
       
         for (let i = 0, len = coords.length, j = len - 1; i < len; j = i++) {
@@ -326,7 +331,7 @@
         return [x * factor, y * factor];
       }
 
-      function getPropertiesRecursive(element) {
+    function getPropertiesRecursive(element) {
         const properties = {};
         Array.from(element.children).forEach(child => {
           if (child.children.length === 0) {
@@ -341,37 +346,23 @@
         return properties;
       }
 
-      /*function addAttributeRowWithoutGeometry(attributes) {
-        const table = document.getElementById("tab-table");
-      
-        const wrapper = document.createElement("div");
-        wrapper.className = "attribute-entry";
-      
-        Object.entries(attributes).forEach(([key, value]) => {
-          const row = document.createElement("div");
-          row.innerHTML = `<strong>${key}:</strong> ${value}`;
-          wrapper.appendChild(row);
-        });
-      
-        wrapper.style.borderBottom = "1px solid #ccc";
-        wrapper.style.marginBottom = "0.5em";
-        wrapper.style.paddingBottom = "0.5em";
-      
-        table.appendChild(wrapper);
-      }
-      */
-
-      function createTextLabel(feature, latlng) {
-        const text = feature.properties.tekst || '-';
+    function createTextLabel(feature, latlng) {
+        try {
+        const text = feature.properties.tekst ||'-';
         const rotation = feature.properties.katObrotu || 0;
+
+        //console.log(feature.properties,"::", text, latlng, rotation);
       
         const icon = L.divIcon({
           className: 'rotated-label',
-          html: `<div style="transform: rotate(${rotation}deg);color: #000000; transform-origin: center; white-space: nowrap;">${text}</div>`,
+          html: `<div style="transform: rotate(${rotation}deg);color: #000000; transform-origin: left; white-space: nowrap;">${text}</div>`,
           iconSize: null // rozmiar dopasowuje się do treści
         });
       
         return L.marker(latlng, { icon: icon, interactive: false });
+        } catch (err){
+            console.warn("Błąd dodawania etykiety:", err, latlng);
+        }
       }
       
     // Wczytywanie danych GML 
@@ -381,12 +372,13 @@
       Array.from(members).forEach(member => {
         try {
         const feature = member.firstElementChild;
-        const cls = feature.localName;
+        let cls = feature.localName;
         const geom = feature.querySelector('Point, LineString, Polygon, Curve');
         let geometry = null;
         //if (!geom) return;
         if (!geom) {
             geometry =  {type: "Else", coordinates: [0.0, 0.0] };
+            cls = feature.localName + " (bez geometrii)";
 
         } else {
 
@@ -491,9 +483,6 @@
             onEachFeature: (feature, layer) => {
               layer.on('click', () => showFeatureInfo(feature.properties));
               onEachFeature(feature, layer);
-              
-                
-
             }
           }).addTo(map);
           
@@ -511,7 +500,7 @@
     try {
         
 
-        if (cls === 'KR_ObiektKarto' || cls === 'PrezentacjaGraficzna')
+        if (cls === 'KR_ObiektKarto' || cls === 'PrezentacjaGraficzna')// || cls === 'GES_Rzedna')
         {
 
           features.forEach(feature => {
@@ -762,22 +751,71 @@ function updateLabelVisibility(kod, layerName){
 // Funkcja kontrolująca widoczność
 function updateObiektKartoVisibility() {
 
-    // przenieść w przyszłości do pliku json {KOD: Klasa}
-    // EGIB
-    updateLabelVisibility('EGDE','EGB_DzialkaEwidencyjna');
-    updateLabelVisibility('EGBU','EGB_Budynek');
-    updateLabelVisibility('EGUG','EGB_KonturUzytkuGruntowego');
-    updateLabelVisibility('EGKK','EGB_KonturKlasyfikacyjny');
-    updateLabelVisibility('EGBN','EGB_BlokBudynku'); // kondygnacja nadziemmna
-    updateLabelVisibility('EGBP','EGB_BlokBudynku'); // kondygnacja podziemmna
-    updateLabelVisibility('EGBL','EGB_BlokBudynku'); // łącznik
-    updateLabelVisibility('EGBA','EGB_BlokBudynku'); // nawis 
-    updateLabelVisibility('EGOE','EGB_ObrebEwidencyjny');
-    updateLabelVisibility('EGJE','EGB_JednostkaEwidencyjna');
-    updateLabelVisibility('EGPG','EGB_PunktGraniczny');
-    // GESUT
-    updateLabelVisibility('SUWP','GES_PrzewodWodociagowy');
-    // TODO
+    const warstwy = {
+        // EGIB
+        'EGDE': 'EGB_DzialkaEwidencyjna',
+        'EGBU': 'EGB_Budynek',
+        'EGUG': 'EGB_KonturUzytkuGruntowego',
+        'EGKK': 'EGB_KonturKlasyfikacyjny',
+        'EGBN': 'EGB_BlokBudynku',
+        'EGBP': 'EGB_BlokBudynku',
+        'EGBL': 'EGB_BlokBudynku',
+        'EGBA': 'EGB_BlokBudynku',
+        'EGOE': 'EGB_ObrebEwidencyjny',
+        'EGJE': 'EGB_JednostkaEwidencyjna',
+        'EGPG': 'EGB_PunktGraniczny',
+
+        // GESUT
+        'SUWP': 'GES_PrzewodWodociagowy',
+        //
+        "SUCG": "GES_PrzewodCieplowniczy",
+        "SUEE": "GES_PrzewodEnergetyczny",
+        "SUGG": "GES_PrzewodGazowy",
+        "SUKK": "GES_KanalizacjaKablowka",
+        "SUKW": "GES_PrzewodKanalizacyjny",
+        "SUTT": "GES_PrzewodTelekomunikacyjny",
+        "SUSD": "GES_Slup",
+        "SUSZ": "GES_SkrzynkaRozdzielcza",
+        "SUKA": "GES_Kamera",
+        "SUPP": "GES_PunktPomiarowy",
+
+        // BDOT500 - obiekty powierzchniowe
+        "BUBD": "BDT_Budynek",
+        "BUIN": "BDT_InnyObiektBudowlany",
+        "KUKR": "BDT_KorytoRzeki",
+        "KUSP": "BDT_SztucznyZbiornikWodny",
+        "KUTP": "BDT_TerenZieleni",
+        "KUSN": "BDT_Sad",
+        "KULS": "BDT_Las",
+        "DRKD": "BDT_Droga",
+        "DRWP": "BDT_WiaduktLubMost",
+        "DRCH": "BDT_ChodnikLubSciezka",
+        "DRPO": "BDT_Parking",
+        "DRPT": "BDT_PeronTramwajowy",
+        "DRKO": "BDT_Kolej",
+
+        // BDOT500 - obiekty punktowe
+        "PTBR": "BDT_Bramka",
+        "PTPR": "BDT_PrzejscieDlaPieszych",
+        "PTSL": "BDT_Sygnalizator",
+        "PTLI": "BDT_LiniaEnergetyczna",
+        "PTLA": "BDT_Latarnia",
+        "PTDR": "BDT_Drzewo",
+
+        // BDOT500 - obiekty liniowe
+        "LNOG": "BDT_Ogrozenie",
+        "LNKL": "BDT_Kolej",
+        "LNSC": "BDT_Sciezka",
+        "LNCH": "BDT_Chodnik",
+        "LNSM": "BDT_Schody",
+        "LNKR": "BDT_Krawężnik"
+
+        // TODO: Dodaj kolejne kody i klasy obiektów
+    };
+
+    for (const kod in warstwy) {
+        updateLabelVisibility(kod, warstwy[kod]);
+    }
 
 }
 
