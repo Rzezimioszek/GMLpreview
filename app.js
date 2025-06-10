@@ -63,6 +63,7 @@
     const layerGroups = {};
     const innerLayers = {};
     const featuresByClass = {};
+    const featuresById = {}; 
 
     const epsgDefs = {
       'EPSG:2176': '+proj=tmerc +lat_0=0 +lon_0=15 +k=0.999923 +x_0=5500000 +y_0=0 +ellps=GRS80 +units=m +no_defs',
@@ -444,10 +445,16 @@
           });
           
           
+        const featureId = feature.getAttribute('gml:id');
+        const geojsonFeature = { type: 'Feature', geometry, properties };
 
         if (!featuresByClass[cls]) featuresByClass[cls] = [];
+        featuresByClass[cls].push(geojsonFeature);
 
-        featuresByClass[cls].push({ type: 'Feature', geometry, properties });
+        if (featureId) {
+            featuresById['#' + featureId] = feature;
+            //console.log(featureId);
+          }
 
       } catch(err){
         console.warn("Błąd przetwarzania featureMember:", err);
@@ -554,26 +561,70 @@
     // Podgląd atrybutów
     function showFeatureInfo(properties) {
         const info = document.getElementById('tab-info');
-        let html = '<strong>Dane obiektu:</strong><br>';
+        info.innerHTML = '';
+
       
-        for (const [key, value] of Object.entries(properties)) {
-            if (Array.isArray(value)) {
-              html += `<strong>${key}</strong>:<ul>`;
+        for (const key in properties) {
+            const value = properties[key];
+        
+            const row = document.createElement('div');
+            row.classList.add('attribute-row');
+        
+            const label = document.createElement('strong');
+            label.textContent = `${key}: `;
+            row.appendChild(label);
+        
+            if (typeof value === 'object' && value['xlink:href']) {
+              const link = document.createElement('a');
+              link.href = '#';
+              link.textContent = value['xlink:href'];
+              link.style.color = 'blue';
+              link.onclick = (e) => {
+                e.preventDefault();
+                const referenced = featuresById["#" + String(value['xlink:href']).replace(' urn:pzgik:id:', '')];
+                if (referenced) {
+                  const refProps = getPropertiesRecursive(referenced);
+                  showFeatureInfo(refProps); // rekurencyjnie pokaż dane
+                } else {
+                  alert('Nie znaleziono obiektu: ' + value['xlink:href']);
+                }
+              };
+              row.appendChild(link);
+            } else if (Array.isArray(value)) {
+              //row.appendChild(document.createTextNode(value.join(', ')));
               value.forEach(item => {
                 if (typeof item === 'object' && item['xlink:href']) {
-                  html += `<li><a href="${item['xlink:href']}" target="_blank" style="text-decoration: underline; color: blue;">${item['xlink:href']}</a></li>`;
+                    const link = document.createElement('a');
+                    link.href = '#';
+                    link.textContent = value['xlink:href'];
+                    link.style.color = 'blue';
+                    link.onclick = (e) => {
+                      e.preventDefault();
+                      const referenced = featuresById["#" + String(value['xlink:href']).replace(' urn:pzgik:id:', '')];
+                      if (referenced) {
+                        const refProps = getPropertiesRecursive(referenced);
+                        //showFeatureInfo(refProps); // rekurencyjnie pokaż dane
+                        showFeatureInfo(referenced.properties);
+                      } else {
+                        alert('Nie znaleziono obiektu: ' + value['xlink:href']);
+                      }
+                    };
+                    row.appendChild(link);
                 } else {
-                  html += `<li>${item}</li>`;
+                    const span = document.createElement('span');
+                    span.textContent = JSON.stringify(item);
+                    row.appendChild(span);
+                    //row.appendChild(document.createTextNode(item.join(', ')));
                 }
               });
-              html += '</ul>';
-            } else if (typeof value === 'object' && value !== null && value['xlink:href']) {
-              html += `<strong>${key}</strong>: <a href="${value['xlink:href']}" target="_blank" style="text-decoration: underline; color: blue;">${value['xlink:href']}</a><br>`;
             } else {
-              html += `<strong>${key}</strong>: ${value}<br>`;
+                const span = document.createElement('span');
+                span.textContent = JSON.stringify(value);
+              row.appendChild(document.createTextNode(value));
             }
+        
+            info.appendChild(row);
           }
-        info.innerHTML = html;
 
         switchTab('info', 'Atrybuty obiektu');
       }
@@ -586,8 +637,8 @@
         return value ?? '';
       }
       
-    // Pop up z tabelą
-    // TODO do dodania zapis do xls, json itp.
+    // Popup z tabelą
+    // TODO stylizacja popup
     function openTablePopup(cls, features) {
         const popup = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
         if (!popup) {
@@ -596,20 +647,32 @@
         }
       
         const keys = Object.keys(features[0].properties);
+        const tableId = 'data-table';
+
         let html = `
           <html>
             <head>
               <title>${cls}</title>
+              <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+              <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+              <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
               <style>
                 body { font-family: Arial, sans-serif; padding: 10px; }
-                table { border-collapse: collapse; width: 100%; }
-                th, td { border: 1px solid #ccc; padding: 1px; text-align: left; vertical-align: top; }
+                table { border-collapse: collapse; width: 100%; margin-top: 10px;}
+                th, td { border: 1px solid #ccc; padding: 1px; text-align: left; vertical-align: top; font-size: 12px;}
                 th { background-color: #f4f4f4; }
+                .buttons { margin-bottom: 10px; }
+                button { margin-right: 10px; padding: 5px 10px; }
               </style>
             </head>
             <body>
               <h2>${cls}</h2>
-              <table>
+              <div class="buttons">
+                <button onclick="downloadExcel()">Zapisz do Excel</button>
+                <button onclick="downloadPDF()">Zapisz do PDF</button>
+                <button onclick="copyToClipboard()">Kopiuj do schowka</button>
+              </div>
+              <table id="${tableId}">
                 <thead><tr>${keys.map(k => `<th>${k}</th>`).join('')}</tr></thead>
                 <tbody>
         `;
@@ -630,6 +693,39 @@
         html += `
                 </tbody>
               </table>
+              <script>
+              function downloadExcel() {
+                const table = document.getElementById('${tableId}');
+                const wb = XLSX.utils.table_to_book(table, {sheet: "${cls}"});
+                XLSX.writeFile(wb, "${cls}.xlsx");
+              }
+              function downloadPDF() {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('l', 'pt', 'a4');
+                doc.text("${cls}", 40, 30);
+                doc.autoTable({
+                  html: "#${tableId}",
+                  startY: 40,
+                  styles: { fontSize: 8, cellPadding: 2 }
+                });
+                doc.save("${cls}.pdf");
+              }
+              function copyToClipboard() {
+                const table = document.getElementById('${tableId}');
+                let text = '';
+                const rows = table.querySelectorAll('tr');
+                rows.forEach(row => {
+                  const cols = row.querySelectorAll('th, td');
+                  const rowText = Array.from(cols).map(td => td.innerText).join('\\t');
+                  text += rowText + '\\n';
+                });
+                navigator.clipboard.writeText(text).then(() => {
+                  alert('Tabela została skopiowana do schowka.');
+                }).catch(err => {
+                  alert('Błąd podczas kopiowania: ' + err);
+                });
+              }
+            </script>
             </body>
           </html>
         `;

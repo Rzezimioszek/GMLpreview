@@ -1,9 +1,10 @@
 {
     "name": "GML Preview",
     "short_name": "GML",
+    "description": "Przeglądarka plików GML online",
     "start_url": "./index.html",
     "display": "standalone",
-    "background_color": "#ffffff",
+    "background_color": "#000000",
     "theme_color": "#000000",
     "icons": [
       {
@@ -16,6 +17,7 @@
         "sizes": "512x512",
         "type": "image/png"
       }
-    ]
+    ],
+    "lang": "pl"
   }
   
